@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+
+<html lang="sv">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ÄventyretGDPRedition</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <style>
+
+        /* --- Färgschema & Grundläggande Stilar --- */
+
+        :root {
+
+            --color-primary-1: #5A4DB7; --color-primary-2: #26A0BD; --color-primary-3: #3CCCEE;
+
+            --color-secondary-1: #5A4DB7; --color-secondary-2: #43D0DA; --color-complement: #F7CD02; /* Gul */
+
+            --color-background: #ffffff; --color-text: #000000; --color-path: #f0f0f0;
+
+            --color-wall: #888888; --color-house: #b0a090; --color-door: #8c7b6a;
+
+            --color-furniture: #cccccc; --color-feedback-correct: #28a745; --color-feedback-incorrect: #dc3545;
+
+            --color-exit-door: #a52a2a;
+
+            --color-cave-floor: #5c5c5c; --color-cave-wall: #333333; --color-fire: #FF4500;
+
+            --color-cave2-floor: #4a4a6a; --color-cave2-wall: #2a2a4a;
+
+            --color-health-full: #ff0000; --color-health-empty: #cccccc;
+
+            --color-warning: #ffff00;
+
+            --minimap-bg: rgba(0, 0, 0, 0.6); --minimap-border: var(--color-primary-1);
+
+            --minimap-wall: #555; --minimap-path: #ccc; --minimap-house: var(--color-house);
+
+            --minimap-player: var(--color-complement);
+
+            --color-transition: #d4af37;
+
+            --color-star-vendor-bg: var(--color-complement);
+
+            --star-color-1: #FFD700; --star-color-2: #FFA500; --star-color-3: #FF4500; --star-color-4: #FFFFFF;
+
+            --color-dpia-modal-bg: rgba(42, 42, 74, 0.95);
+
+            --color-dpia-button: var(--color-primary-3);
+
+            --color-dpia-button-hover: var(--color-secondary-2);
+
+            --tile-size: 40px;
+
+        }
+
+
+
+        body {
+
+            font-family: 'Press Start 2P', cursive; display: flex; flex-direction: column;
+
+            align-items: center; justify-content: center; min-height: 100vh;
+
+            background-color: var(--color-background); color: var(--color-text);
+
+            margin: 0; padding: 20px; box-sizing: border-box;
+
+            overflow-x: hidden;
+
+        }
+
+
+
+        #game-container {
+
+            position: relative; border: 4px solid var(--color-text); background-color: var(--color-path);
+
+            margin-bottom: 15px; overflow: hidden; max-width: 100%;
+
+        }
+
+
+
+        #game-world { display: grid; gap: 0; }
+
+
+
+        .cell {
+
+            width: var(--tile-size); height: var(--tile-size);
+
+            font-size: calc(var(--tile-size) * 0.7);
+
+            display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+
+            transition: transform 0.1s ease-out; overflow: hidden; line-height: 1;
+
+            position: relative;
+
+        }
+
+
+
+        /* --- Celltyper --- */
+
+        .grass { background-color: var(--color-path); }
+
+        .path { background-color: var(--color-path); }
+
+        .wall { background-color: var(--color-wall); color: var(--color-background); }
+
+        .house { background-color: var(--color-house); border: 1px solid var(--color-door); }
+
+        .door { background-color: var(--color-door); cursor: pointer; }
+
+        .exit-door { background-color: var(--color-exit-door); cursor: pointer; }
+
+        .furniture { background-color: var(--color-furniture); }
+
+        .player .emoji { /* No specific style needed */ }
+
+        .npc { background-color: transparent; cursor: help; }
+
+        .jump { transform: translateY(-10px); }
+
+        .transition-zone {
+
+            background-color: var(--color-transition); cursor: pointer;
+
+            background-image: repeating-linear-gradient( 45deg, transparent, transparent 5px, rgba(255, 255, 255, 0.2) 5px, rgba(255, 255, 255, 0.2) 10px );
+
+        }
+
+        .star-vendor { background-color: var(--color-star-vendor-bg); cursor: pointer; border-radius: 5px; }
+
+        .hawk { background-color: transparent; }
+
+        .cave-floor { background-color: var(--color-cave-floor); }
+
+        .cave-wall { background-color: var(--color-cave-wall); }
+
+        .cave-entrance { background-color: var(--color-cave-floor); cursor: pointer; }
+
+        .cave2-floor { background-color: var(--color-cave2-floor); }
+
+        .cave2-wall { background-color: var(--color-cave2-wall); }
+
+        .cave2-entrance { background-color: var(--color-cave2-floor); cursor: pointer; }
+
+        .skull { background-color: transparent; }
+
+        .fire {
+
+            background-color: transparent; color: var(--color-fire);
+
+            animation: flicker 0.5s infinite alternate;
+
+        }
+
+        @keyframes flicker { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 1; transform: scale(1.1); } }
+
+
+
+        .warning-eyes {
+
+            position: absolute; top: 50%; left: 50%;
+
+            transform: translate(-50%, -50%);
+
+            font-size: calc(var(--tile-size) * 0.6);
+
+            color: var(--color-warning); z-index: 2;
+
+            animation: pulse 0.7s infinite alternate;
+
+        }
+
+        @keyframes pulse { 0% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } }
+
+
+
+        /* --- UI Element --- */
+
+        #ui-top-bar {
+
+            display: flex; justify-content: space-between; align-items: center;
+
+            width: 100%; max-width: 800px; margin-bottom: 15px;
+
+            padding: 0 10px; box-sizing: border-box; flex-wrap: wrap;
+
+        }
+
+        #score-board, #health-display {
+
+            font-size: 1em; background-color: var(--color-primary-1);
+
+            color: var(--color-background); padding: 8px 15px;
+
+            border-radius: 5px; border: 2px solid var(--color-text);
+
+            text-align: center; white-space: nowrap; margin: 5px;
+
+        }
+
+        #health-display .heart { color: var(--color-health-full); font-size: 1.2em; margin: 0 1px; display: inline-block; }
+
+        #health-display .heart.empty { color: var(--color-health-empty); }
+
+
+
+        /* --- Quiz Modal --- */
+
+        #quiz-modal {
+
+            display: none; position: absolute; top: 50%; left: 50%;
+
+            transform: translate(-50%, -50%); background-color: rgba(90, 77, 183, 0.95);
+
+            color: var(--color-background); padding: 30px; border: 4px solid var(--color-text);
+
+            border-radius: 10px; z-index: 10; width: 90%; max-width: 500px;
+
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); text-align: center; box-sizing: border-box;
+
+        }
+
+        #quiz-modal h3 { margin-top: 0; font-size: 1.1em; margin-bottom: 20px; line-height: 1.3; }
+
+        #quiz-modal ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+
+        #quiz-modal li {
+
+            background-color: var(--color-primary-3); color: var(--color-text);
+
+            padding: 12px; margin: 8px 0; border-radius: 5px; cursor: pointer;
+
+            transition: background-color 0.2s ease; border: 2px solid var(--color-primary-2);
+
+            font-size: 0.9em; line-height: 1.3; text-align: left; /* Left align text in list items */
+
+        }
+
+        #quiz-modal li:hover { background-color: var(--color-secondary-2); }
+
+        #quiz-feedback { margin-top: 20px; font-size: 0.9em; min-height: 50px; font-weight: bold; line-height: 1.4; }
+
+        .feedback-correct { color: var(--color-feedback-correct); }
+
+        .feedback-incorrect { color: var(--color-feedback-incorrect); }
+
+        #close-quiz {
+
+            display: none; margin-top: 15px; padding: 10px 20px;
+
+            background-color: var(--color-primary-2); color: var(--color-background);
+
+            border: 2px solid var(--color-text); border-radius: 5px; cursor: pointer;
+
+            font-family: 'Press Start 2P', cursive; font-size: 0.9em;
+
+        }
+
+        #close-quiz:hover { background-color: var(--color-secondary-1); color: var(--color-complement); }
+
+
+
+        /* --- Minimap --- */
+
+        #minimap-container {
+
+            position: absolute; top: 10px; right: 10px; background-color: var(--minimap-bg);
+
+            border: 2px solid var(--minimap-border); padding: 5px; border-radius: 5px; z-index: 5;
+
+            display: none;
+
+        }
+
+        #minimap { display: grid; gap: 1px; }
+
+        .minimap-cell { width: 5px; height: 5px; background-color: var(--minimap-path); }
+
+        .minimap-wall { background-color: var(--minimap-wall); }
+
+        .minimap-house { background-color: var(--minimap-house); }
+
+        .minimap-player { background-color: var(--minimap-player); outline: 1px solid black; }
+
+        .minimap-cave { background-color: #444; }
+
+
+
+        /* --- Star Effect --- */
+
+        .star-effect {
+
+            position: absolute; width: 10px; height: 10px;
+
+            background-color: var(--star-color-1); border-radius: 50%;
+
+            pointer-events: none; z-index: 100; opacity: 1;
+
+            animation: starBurst 1.2s ease-out forwards;
+
+        }
+
+        @keyframes starBurst { 0% { transform: translate(0, 0) scale(0.5); opacity: 1; } 50% { opacity: 0.8; } 100% { transform: translate(calc(var(--tx, 0) * 1px), calc(var(--ty, 0) * 1px)) scale(0); opacity: 0; } }
+
+
+
+        /* --- Message Overlay --- */
+
+        #message-overlay {
+
+            display: none; position: absolute; top: 20%; left: 50%;
+
+            transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white;
+
+            padding: 15px 25px; border-radius: 8px; z-index: 50; font-size: 1em; text-align: center;
+
+            animation: fadeInOut 2.5s ease-in-out forwards; width: 80%; max-width: 400px;
+
+        }
+
+        @keyframes fadeInOut { 0%, 100% { opacity: 0; visibility: hidden; } 10%, 90% { opacity: 1; visibility: visible; } }
+
+
+
+        /* --- Cave Timer --- */
+
+        #cave-timer-display {
+
+            display: none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+
+            background-color: rgba(0, 0, 0, 0.7); color: white; padding: 5px 15px;
+
+            border-radius: 5px; z-index: 60; font-size: 1em;
+
+        }
+
+
+
+        /* --- DPIA Minigame UI --- */
+
+        #dpia-creature {
+
+            display: none; position: absolute; top: 50%; left: 50%;
+
+            transform: translate(-50%, -50%);
+
+            font-size: calc(var(--tile-size) * 2);
+
+            z-index: 5; animation: creatureBob 2s infinite ease-in-out;
+
+        }
+
+        @keyframes creatureBob { 0%, 100% { transform: translate(-50%, -50%) translateY(0); } 50% { transform: translate(-50%, -50%) translateY(-8px); } }
+
+        #dpia-modal {
+
+            display: none; position: absolute; bottom: 10%; left: 50%;
+
+            transform: translateX(-50%); background-color: var(--color-dpia-modal-bg);
+
+            color: var(--color-background); padding: 20px; border: 4px solid var(--color-text);
+
+            border-radius: 10px; z-index: 70; width: 90%; max-width: 600px;
+
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); text-align: center; box-sizing: border-box;
+
+        }
+
+        #dpia-modal h3 { margin-top: 0; margin-bottom: 10px; font-size: 1em; color: var(--color-complement); }
+
+        #dpia-risk-text { margin-bottom: 20px; font-size: 0.9em; line-height: 1.4; min-height: 40px; }
+
+        #dpia-mitigation-options { display: flex; flex-direction: column; gap: 10px; align-items: center; margin-bottom: 15px; }
+
+        .dpia-button {
+
+            background-color: var(--color-dpia-button); color: var(--color-text);
+
+            padding: 12px 15px; border-radius: 5px; cursor: pointer;
+
+            transition: background-color 0.2s ease, transform 0.1s ease;
+
+            border: 2px solid var(--color-primary-2); font-family: 'Press Start 2P', cursive;
+
+            font-size: 0.8em; line-height: 1.3; width: 90%; max-width: 400px; text-align: center;
+
+        }
+
+        .dpia-button:hover { background-color: var(--color-dpia-button-hover); transform: scale(1.03); }
+
+        .dpia-button:disabled { opacity: 0.6; cursor: default; transform: none; background-color: #aaa; }
+
+        #dpia-feedback { margin-top: 15px; font-size: 0.9em; min-height: 30px; font-weight: bold; line-height: 1.4; }
+
+        #dpia-progress { font-size: 0.8em; margin-top: 10px; color: var(--color-primary-3); }
+
+
+
+        /* --- Instruktionstext --- */
+
+        .instructions {
+
+            margin-top: 15px; font-size: 0.8em; text-align: center;
+
+            max-width: 600px; line-height: 1.5;
+
+        }
+
+
+
+        /* --- Responsivitet --- */
+
+        @media (max-width: 800px) { :root { --tile-size: 30px; } }
+
+        @media (max-width: 600px) { :root { --tile-size: 25px; } }
+
+        @media (max-width: 450px) { :root { --tile-size: 20px; } }
+
+        @media (max-width: 600px) {
+
+             h1 { font-size: 1.5em; } #ui-top-bar { flex-direction: column; gap: 10px; }
+
+             #score-board, #health-display { font-size: 0.9em; padding: 6px 12px; }
+
+             #quiz-modal { padding: 20px; } #quiz-modal h3 { font-size: 1em; }
+
+             #quiz-modal li { padding: 10px; font-size: 0.8em; } #close-quiz { padding: 8px 15px; font-size: 0.8em; }
+
+             .minimap-cell { width: 4px; height: 4px; } #minimap-container { top: 5px; right: 5px; padding: 3px;}
+
+             #message-overlay { font-size: 0.9em; padding: 10px 20px; } #cave-timer-display { font-size: 0.9em; padding: 4px 10px; top: 5px; }
+
+             #dpia-modal { padding: 15px; bottom: 5%; } #dpia-modal h3 { font-size: 0.9em; }
+
+             #dpia-risk-text { font-size: 0.8em; } .dpia-button { padding: 10px 12px; font-size: 0.75em; }
+
+             #dpia-creature { font-size: calc(var(--tile-size) * 1.8); } .instructions { font-size: 0.7em; }
+
+        }
+
+         @media (max-width: 450px) {
+
+             h1 { font-size: 1.2em; } #score-board, #health-display { font-size: 0.8em; padding: 5px 10px; }
+
+             #health-display .heart { font-size: 1em; } #quiz-modal { padding: 15px; }
+
+             #quiz-modal h3 { font-size: 0.9em; } #quiz-modal li { padding: 8px; font-size: 0.75em; }
+
+             #close-quiz { padding: 6px 12px; font-size: 0.75em; } .minimap-cell { width: 3px; height: 3px; }
+
+             #minimap-container { top: 3px; right: 3px; padding: 2px;} #message-overlay { font-size: 0.8em; padding: 8px 15px; }
+
+             #cave-timer-display { font-size: 0.8em; padding: 3px 8px; } #dpia-modal { padding: 10px; }
+
+             #dpia-modal h3 { font-size: 0.8em; } #dpia-risk-text { font-size: 0.75em; }
+
+             .dpia-button { padding: 8px 10px; font-size: 0.7em; } #dpia-creature { font-size: calc(var(--tile-size) * 1.6); }
+
+             .instructions { font-size: 0.65em; }
+
+        }
+
+
+
+        /* Shake animation */
+
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-3px); } }
+
+
+
+    </style>
+
+</head>
+
+<body>
+
+
+
+    <h1>ÄventyretKsdGDPRedition</h1> {/* Uppdaterad titel */}
+
+    <div id="ui-top-bar">
+
+        <div id="score-board">Poäng: 0</div>
+
+        <div id="health-display">Hälsa: <span id="health-hearts"></span></div>
+
+    </div>
+
+
+
+    <div id="game-container">
+
+        <div id="game-world"></div>
+
+        <div id="minimap-container">
+
+             <div id="minimap"></div>
+
+        </div>
+
+        <div id="cave-timer-display">Tid: 0s</div>
+
+        <div id="dpia-creature"></div>
+
+        <div id="quiz-modal">
+
+            <h3 id="quiz-question">Fråga här</h3>
+
+            <ul id="quiz-answers"></ul>
+
+            <div id="quiz-feedback"></div>
+
+            <button id="close-quiz">Stäng</button>
+
+        </div>
+
+        <div id="dpia-modal">
+
+            <h3>Riskbedömning (DPIA)</h3>
+
+            <div id="dpia-risk-text">Riskbeskrivning här...</div>
+
+            <div id="dpia-mitigation-options"></div>
+
+            <div id="dpia-feedback"></div>
+
+            <div id="dpia-progress">Framsteg: 0 / 5</div>
+
+        </div>
+
+        <div id="message-overlay">Meddelande här</div>
+
+    </div>
+
+     <p class="instructions">
+
+         Använd WASD/Piltangenter för att flytta 🚶. Mellanslag för att hoppa (ej i grottor).
+
+         Gå till 👮, 🏢, 🧑 för frågor (2p/rätt).
+
+         Gå till 🌟 (och 🦅) för stjärnbyte (kostar 10p, ger +2 max hälsa).
+
+         Gå till ⛰️ för Tillsyns-utmaning (undvik 🔥, överlev 30s för 8p, förlust ger -5p).
+
+         Gå till 👾 för DPIA-utmaning (identifiera rätt åtgärd för 5 risker, ger 10p).
+
+         Gå till 🚪 för att gå in/ut ur hus. Gå till kartans kant (guld) för att byta område.
+
+     </p>
+
+
+
+    <script>
+
+        // --- Game Data and Configuration ---
+
+        let TILE_SIZE = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tile-size') || '40');
+
+        const PLAYER = '🚶';
+
+        const NPCS = ['👮', '🏢', '🧑'];
+
+        const STAR_VENDOR = '🌟';
+
+        const HAWK = '🦅';
+
+        const WALL = '🌳'; const INDOOR_WALL = '🧱'; const GRASS = ''; const PATH = '';
+
+        const HOUSE = ''; const DOOR = '🚪'; const EXIT_DOOR = '🚪'; const FURNITURE = '🪑';
+
+        const CAVE_ENTRANCE = '⛰️'; const CAVE2_ENTRANCE = '👾';
+
+        const SKULL = '💀'; const FIRE = '🔥'; const ALIEN = '👽'; const ROBOT = '🤖';
+
+        const CAVE_FLOOR = ''; const CAVE_WALL = '⬛';
+
+        const CAVE2_FLOOR = ''; const CAVE2_WALL = '🔮';
+
+        const WARNING_EYES = '👀';
+
+
+
+        // --- Health & Score ---
+
+        const initialMaxHealth = 3;
+
+        let maxHealth = initialMaxHealth;
+
+        let currentHealth = initialMaxHealth;
+
+        const healthIncreaseOnStar = 2;
+
+        const pointsPerCorrectAnswer = 2;
+
+        const starExchangeCost = 10;
+
+        const caveSurviveTimeGoal = 30;
+
+        const caveSurviveBonus = 8;
+
+        const fireDamageInterval = 1000;
+
+        const failurePointPenalty = 5;
+
+        const dpiaWinBonus = 10;
+
+        const dpiaCorrectAnswersNeeded = 5;
+
+
+
+        // --- Map Definitions ---
+
+        const HAWK_TILE = 20;
+
+        const worldMapData1 = [
+
+             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],[2, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 8],[2, 1, 0, 0, 0, 0, 1, 0, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 0, 8],[2, 1, 0, 2, 2, 0, 1, 0, 2, 0, 0, 2, 0, 2, 0, 3, 0, 2, 0, 8],[2, 1, 0, 2, 0, 0, 1, 0, 2, 0, 0, 2, 0, 2, 0, 0, 0, 2, 0, 8],[2, 1, 0, 2, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 8],[2, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 8],[2, 1, 1, 1, 17, 1, 1, 0, 1, 0, 0, 1, 0, 2, 0, 1, 0, 1, 0, 8],[2, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 2, 0, 1, 1, 1, 0, 8],[2, 0, 15, 14, 15, 0, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 8],[2, 0, 2, 4, 4, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 3, 8],[2, 0, 2, 4, 4, 2, 1, 0, 0, 0, 12, HAWK_TILE, 0, 0, 0, 0, 1, 0, 0, 8],
+
+             [2, 0, 2, 5, 2, 2, 1, 0, 2, 2, 2, 2, 2, 2, 2, 0, 1, 1, 1, 8],[2, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 2, 0, 0, 0, 0, 8],[2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8],[2, 2, 2, 2, 2, 2, 2, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+
+        ];
+
+        const worldMapData2 = [
+
+             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],[9, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 3, 0, 2],[9, 0, 2, 0, 1, 0, 0, 0, 0, 1, 0, 2, 0, 0, 2],[9, 0, 2, 0, 1, 0, 2, 2, 0, 1, 0, 2, 0, 0, 2],[9, 0, 2, 0, 1, 0, 2, 0, 0, 1, 0, 2, 2, 0, 2],[9, 1, 1, 1, 1, 0, 2, 0, 0, 1, 0, 0, 0, 0, 2],[9, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2],[9, 0, 2, 2, 2, 2, 0, 1, 1, 1, 0, 0, 0, 1, 2],[9, 0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 2, 0, 1, 2],[9, 2, 2, 4, 4, 2, 0, 1, 0, 0, 0, 2, 0, 1, 2],[9, 2, 2, 4, 4, 2, 0, 1, 1, 1, 0, 2, 0, 1, 2],[9, 0, 0, 5, 0, 0, 0, 0, 3, 1, 0, 2, 0, 1, 2],[9, 0, 0, 0, 0, 2, 2, 2, 2, 1, 0, 0, 0, 1, 2],[9, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2],[9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 2],[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+
+        ];
+
+        const worldMapData3 = [
+
+             [11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
